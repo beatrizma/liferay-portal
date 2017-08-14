@@ -32,6 +32,7 @@ import com.liferay.portal.kernel.search.SortFactoryUtil;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.OrderByComparator;
 import com.liferay.portal.kernel.util.ParamUtil;
+import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 
@@ -83,6 +84,20 @@ public class FragmentDisplayContext {
 		}
 
 		return backURL.toString();
+	}
+
+	public FragmentCollection getFragmentCollection() throws PortalException {
+		if (_fragmentCollection != null) {
+			return _fragmentCollection;
+		}
+
+		FragmentCollection fragmentCollection =
+			FragmentCollectionServiceUtil.fetchFragmentCollection(
+				getFragmentCollectionId());
+
+		_fragmentCollection = fragmentCollection;
+
+		return _fragmentCollection;
 	}
 
 	public long getFragmentCollectionId() {
@@ -190,6 +205,16 @@ public class FragmentDisplayContext {
 			fragmentCollectionsSearchContainer;
 
 		return _fragmentCollectionsSearchContainer;
+	}
+
+	public String getFragmentCollectionTitle() throws PortalException {
+		FragmentCollection fragmentCollection = getFragmentCollection();
+
+		if (fragmentCollection == null) {
+			return StringPool.BLANK;
+		}
+
+		return fragmentCollection.getName();
 	}
 
 	public SearchContainer getFragmentEntriesSearchContainer()
@@ -323,6 +348,7 @@ public class FragmentDisplayContext {
 	}
 
 	private String _displayStyle;
+	private FragmentCollection _fragmentCollection;
 	private Long _fragmentCollectionId;
 	private SearchContainer _fragmentCollectionsSearchContainer;
 	private SearchContainer _fragmentEntriesSearchContainer;
