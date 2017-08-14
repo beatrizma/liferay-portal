@@ -16,7 +16,9 @@ package com.liferay.modern.site.building.fragment.web.internal.display.context;
 
 import com.liferay.modern.site.building.fragment.constants.FragmentPortletKeys;
 import com.liferay.modern.site.building.fragment.model.FragmentCollection;
+import com.liferay.modern.site.building.fragment.model.FragmentEntry;
 import com.liferay.modern.site.building.fragment.service.FragmentCollectionServiceUtil;
+import com.liferay.modern.site.building.fragment.service.FragmentEntryServiceUtil;
 import com.liferay.modern.site.building.fragment.web.util.FragmentPortletUtil;
 import com.liferay.portal.kernel.dao.search.EmptyOnClickRowChecker;
 import com.liferay.portal.kernel.dao.search.SearchContainer;
@@ -35,6 +37,7 @@ import com.liferay.portal.kernel.util.WebKeys;
 
 import java.util.List;
 
+import javax.portlet.PortletURL;
 import javax.portlet.RenderRequest;
 import javax.portlet.RenderResponse;
 
@@ -66,6 +69,31 @@ public class FragmentDisplayContext {
 			FragmentPortletKeys.FRAGMENT, "display-style", "icon");
 
 		return _displayStyle;
+	}
+
+	public String getEditFragmentEntryRedirect() throws PortalException {
+		PortletURL backURL = _renderResponse.createRenderURL();
+
+		backURL.setParameter("mvcPath", "/view_fragment_entries.jsp");
+
+		if (getFragmentCollectionId() > 0) {
+			backURL.setParameter(
+				"fragmentCollectionId",
+				String.valueOf(getFragmentCollectionId()));
+		}
+
+		return backURL.toString();
+	}
+
+	public long getFragmentCollectionId() {
+		if (Validator.isNotNull(_fragmentCollectionId)) {
+			return _fragmentCollectionId;
+		}
+
+		_fragmentCollectionId = ParamUtil.getLong(
+			_request, "fragmentCollectionId");
+
+		return _fragmentCollectionId;
 	}
 
 	public SearchContainer getFragmentCollectionsSearchContainer()
@@ -164,6 +192,93 @@ public class FragmentDisplayContext {
 		return _fragmentCollectionsSearchContainer;
 	}
 
+	public SearchContainer getFragmentEntriesSearchContainer()
+		throws PortalException {
+
+		if (_fragmentEntriesSearchContainer != null) {
+			return _fragmentEntriesSearchContainer;
+		}
+
+		SearchContainer fragmentEntriesSearchContainer = new SearchContainer(
+			_renderRequest, _renderResponse.createRenderURL(), null,
+			"there-are-no-fragment-entries");
+
+		if (!isSearch()) {
+			fragmentEntriesSearchContainer.setEmptyResultsMessage(
+				"there-are-no-fragment-entries.-you-can-add-a-fragment-entry-" +
+					"by-clicking-the-plus-button-on-the-bottom-right-corner");
+			fragmentEntriesSearchContainer.setEmptyResultsMessageCssClass(
+				"taglib-empty-result-message-header-has-plus-btn");
+		}
+		else {
+			fragmentEntriesSearchContainer.setSearch(true);
+		}
+
+		fragmentEntriesSearchContainer.setRowChecker(
+			new EmptyOnClickRowChecker(_renderResponse));
+
+		OrderByComparator<FragmentEntry> orderByComparator =
+			FragmentPortletUtil.getFragmentEntryOrderByComparator(
+				getOrderByCol(), getOrderByType());
+
+		fragmentEntriesSearchContainer.setOrderByCol(getOrderByCol());
+		fragmentEntriesSearchContainer.setOrderByComparator(orderByComparator);
+		fragmentEntriesSearchContainer.setOrderByType(getOrderByType());
+
+		List<FragmentEntry> entries = null;
+		int fragmentEntriesCount = 0;
+
+		long fragmentCollectionId = getFragmentCollectionId();
+
+		ThemeDisplay themeDisplay = (ThemeDisplay)_request.getAttribute(
+			WebKeys.THEME_DISPLAY);
+
+		if (isSearch()) {
+			Sort sort = null;
+
+			String orderByCol = getOrderByCol();
+
+			if (orderByCol.equals("name")) {
+				sort = SortFactoryUtil.getSort(
+					FragmentCollection.class, Sort.STRING_TYPE, Field.NAME,
+					getOrderByType());
+			}
+			else if (orderByCol.equals("create-date")) {
+				sort = SortFactoryUtil.getSort(
+					FragmentCollection.class, Sort.LONG_TYPE, Field.CREATE_DATE,
+					getOrderByType());
+			}
+
+			BaseModelSearchResult<FragmentEntry> baseModelSearchResult =
+				FragmentEntryServiceUtil.searchFragmentEntries(
+					themeDisplay.getScopeGroupId(), fragmentCollectionId,
+					getKeywords(), fragmentEntriesSearchContainer.getStart(),
+					fragmentEntriesSearchContainer.getEnd(), sort);
+
+			fragmentEntriesSearchContainer.setTotal(
+				baseModelSearchResult.getLength());
+
+			entries = baseModelSearchResult.getBaseModels();
+		}
+		else {
+			fragmentEntriesCount =
+				FragmentEntryServiceUtil.getGroupFragmentCollectionsCount(
+					fragmentCollectionId);
+
+			entries = FragmentEntryServiceUtil.getFragmentEntries(
+				fragmentCollectionId, fragmentEntriesSearchContainer.getStart(),
+				fragmentEntriesSearchContainer.getEnd(), orderByComparator);
+
+			fragmentEntriesSearchContainer.setTotal(fragmentEntriesCount);
+		}
+
+		fragmentEntriesSearchContainer.setResults(entries);
+
+		_fragmentEntriesSearchContainer = fragmentEntriesSearchContainer;
+
+		return _fragmentEntriesSearchContainer;
+	}
+
 	public String getKeywords() {
 		if (_keywords != null) {
 			return _keywords;
@@ -208,7 +323,9 @@ public class FragmentDisplayContext {
 	}
 
 	private String _displayStyle;
+	private Long _fragmentCollectionId;
 	private SearchContainer _fragmentCollectionsSearchContainer;
+	private SearchContainer _fragmentEntriesSearchContainer;
 	private String _keywords;
 	private String _orderByCol;
 	private String _orderByType;
